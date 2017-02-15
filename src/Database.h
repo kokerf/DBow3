@@ -138,7 +138,7 @@ public:
     BowVector *bowvec = NULL, FeatureVector *fvec = NULL);
 
   /**
-   * Adss an entry to the database and returns its index
+   * Adds an entry to the database and returns its index
    * @param vec bow vector
    * @param fec feature vector to add the entry. Only necessary if using the
    *   direct index

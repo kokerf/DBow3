@@ -644,7 +644,7 @@ WordId Vocabulary::transform
 }
 
 // --------------------------------------------------------------------------
-//! 根据图像描述子features计算图像的词袋单词v
+//! 根据图像描述子features(cv::Mat)计算图像的词袋单词v
 void Vocabulary::transform(
         const cv::Mat& features, BowVector &v) const
 {
@@ -668,6 +668,7 @@ void Vocabulary::transform(
     //! 1. 把图像属于的单词按照顺序排列，包含权重。构成图像向量map<wordId,weight>
     if(m_weighting == TF || m_weighting == TF_IDF)
     {
+        //! 遍历features
         for(int r=0;r<features.rows;r++)
         {
             WordId id;
@@ -676,6 +677,7 @@ void Vocabulary::transform(
             //! 找到feature属于的叶子节点，并且返回对应的单词id和词频
             transform(features.row(r), id, w);
             // not stopped
+            //! 在图像向量中增加对应位置id的权重w
             if(w > 0)  v.addWeight(id, w);
         }
 
@@ -704,13 +706,13 @@ void Vocabulary::transform(
         } // if add_features
     } // if m_weighting == ...
 
-    //! 按照权重归一化向量
+    //! 2. 按照权重归一化向量
     if(must) v.normalize(norm);
 
 }
 
 
-
+//! 根据图像描述子features(vector<cv::Mat>)计算图像的词袋单词v
 void Vocabulary::transform(
   const std::vector<cv::Mat>& features, BowVector &v) const
 {
@@ -725,7 +727,7 @@ void Vocabulary::transform(
   LNorm norm;
   bool must = m_scoring_object->mustNormalize(norm);
 
-
+  //! 1. 把图像属于的单词按照顺序排列，包含权重。构成图像向量map<wordId,weight>
   if(m_weighting == TF || m_weighting == TF_IDF)
   {
     for(auto fit = features.begin(); fit < features.end(); ++fit)
@@ -734,9 +736,11 @@ void Vocabulary::transform(
       WordValue w;
       // w is the idf value if TF_IDF, 1 if TF
 
+      //! 找到feature属于的叶子节点，并且返回对应的单词id和词频
       transform(*fit, id, w);
 
       // not stopped
+      //! 在图像向量中增加对应位置id的权重w
       if(w > 0) v.addWeight(id, w);
     }
 
@@ -765,6 +769,7 @@ void Vocabulary::transform(
     } // if add_features
   } // if m_weighting == ...
 
+  //! 2. 按照权重归一化向量
   if(must) v.normalize(norm);
 }
 
@@ -1437,6 +1442,7 @@ void Vocabulary::load(const cv::FileStorage &fs,
     m_nodes[nid].weight = weight;
     m_nodes[pid].children.push_back(nid);
 
+    //! 把描述子从string类型转换回Mat,赋值给m_node
     DescManip::fromString(m_nodes[nid].descriptor, d);
   }
 

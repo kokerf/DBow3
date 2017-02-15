@@ -88,6 +88,7 @@ EntryId Database::add(
     add(vf,bowvec,fvec);
 }
 
+//! 把features转换成图像向量，并且把图像向量添加到数据库中。
 EntryId Database::add(
   const std::vector<cv::Mat> &features,
   BowVector *bowvec, FeatureVector *fvec)
@@ -120,7 +121,7 @@ EntryId Database::add(
 
 // ---------------------------------------------------------------------------
 
-
+//! 在数据库中添加图形向量v，并且构建逆向索引。
 EntryId Database::add(const BowVector &v,
   const FeatureVector &fv)
 {
@@ -143,6 +144,7 @@ EntryId Database::add(const BowVector &v,
   }
 
   // update inverted file
+  //! 遍历图像向量的每一个元素，更新逆向文件索引m_ifile
   for(vit = v.begin(); vit != v.end(); ++vit)
   {
     const WordId& word_id = vit->first;
@@ -228,7 +230,7 @@ void Database::allocate(int nd, int ni)
 
 
 // --------------------------------------------------------------------------
-
+//! 输入为一幅图像的features(cv::Mat)
 void Database::query(
   const  cv::Mat &features,
   QueryResults &ret, int max_results, int max_id) const
@@ -240,7 +242,7 @@ void Database::query(
 }
 
 
-
+//! 输入为一幅图像的features(std::vector<cv::Mat>)
 void Database::query(
   const std::vector<cv::Mat> &features,
   QueryResults &ret, int max_results, int max_id) const
@@ -295,18 +297,20 @@ void Database::queryL1(const BowVector &vec,
 {
   BowVector::const_iterator vit;
 
-  std::map<EntryId, double> pairs;
+  std::map<EntryId, double> pairs;//! 用来存放检索到图像和对应的权重（与当前图像向量vec具有相同的单词的图像）
   std::map<EntryId, double>::iterator pit;
 
+  //! 1. 找到与当前图像向量具有相同单词的其他图像
+  //! 1.1 遍历图像向量的每一个元素（对应的叶节点）
   for(vit = vec.begin(); vit != vec.end(); ++vit)
   {
     const WordId word_id = vit->first;
     const WordValue& qvalue = vit->second;
 
-    const IFRow& row = m_ifile[word_id];
+    const IFRow& row = m_ifile[word_id];//! 获得第word_id个单词的逆向索引文件IFRow(std::list<IFPair>)
 
     // IFRows are sorted in ascending entry_id order
-
+    //! 1.2 再遍历每个叶节点逆向索引锝到的图像向量
     for(auto rit = row.begin(); rit != row.end(); ++rit)
     {
       const EntryId entry_id = rit->entry_id;
@@ -317,11 +321,12 @@ void Database::queryL1(const BowVector &vec,
         double value = fabs(qvalue - dvalue) - fabs(qvalue) - fabs(dvalue);
 
         pit = pairs.lower_bound(entry_id);
+        //! 如果当前的单词逆向索引对应的图像之前已经检索过（图像的<entry_id, value>已经在pairs中insert过）
         if(pit != pairs.end() && !(pairs.key_comp()(entry_id, pit->first)))
         {
           pit->second += value;
         }
-        else
+        else//! 该图像是第一次被检索到，则放入pairs中。
         {
           pairs.insert(pit,
             std::map<EntryId, double>::value_type(entry_id, value));
@@ -341,6 +346,7 @@ void Database::queryL1(const BowVector &vec,
   // resulting "scores" are now in [-2 best .. 0 worst]
 
   // sort vector in ascending order of score
+  //! 2. 将得到的图像向量按照score大小排序。
   std::sort(ret.begin(), ret.end());
   // (ret is inverted now --the lower the better--)
 

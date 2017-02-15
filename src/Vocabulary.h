@@ -447,7 +447,7 @@ protected:
   
   /// Words of the vocabulary (tree leaves)
   /// this condition holds: m_words[wid]->word_id == wid
-  std::vector<Node*> m_words;
+  std::vector<Node*> m_words;//! 单词就是叶节点的指针
 public:
   //for debug (REMOVE)
   inline Node* getNodeWord(uint32_t idx){return m_words[idx];}

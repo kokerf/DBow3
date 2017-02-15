@@ -139,6 +139,7 @@ void testDatabase(const  vector<cv::Mat > &features)
     // db creates a copy of the vocabulary, we may get rid of "voc" now
 
     // add images to the database
+    //! 把图像一一加入数据库。
     for(size_t i = 0; i < features.size(); i++)
         db.add(features[i]);
 
