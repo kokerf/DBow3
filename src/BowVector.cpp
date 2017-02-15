@@ -33,8 +33,10 @@ BowVector::~BowVector(void)
 
 void BowVector::addWeight(WordId id, WordValue v)
 {
-  BowVector::iterator vit = this->lower_bound(id);
-  
+  BowVector::iterator vit = this->lower_bound(id);//! 返回map中key<=id的元素的指针 http://www.cplusplus.com/reference/map/map/lower_bound/
+
+  //! vit不是map最后一个，并且 id不在vit的key值之前。
+  //! 这个不就相当于(id==vit->first)？第一次进来的时候vit-first为0，如果id为0就有问题？
   if(vit != this->end() && !(this->key_comp()(id, vit->first)))
   {
     vit->second += v;
@@ -58,7 +60,7 @@ void BowVector::addIfNotExist(WordId id, WordValue v)
 }
 
 // --------------------------------------------------------------------------
-
+//! 归一化
 void BowVector::normalize(LNorm norm_type)
 {
   double norm = 0.0; 

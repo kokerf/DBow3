@@ -105,11 +105,13 @@ void testVocCreation(const vector<cv::Mat> &features)
     BowVector v1, v2;
     for(size_t i = 0; i < features.size(); i++)
     {
+        //! 根据图像描述子features计算图像的词袋单词v
         voc.transform(features[i], v1);
         for(size_t j = 0; j < features.size(); j++)
         {
             voc.transform(features[j], v2);
 
+            //! 计算评估v1,v2的相似度
             double score = voc.score(v1, v2);
             cout << "Image " << i << " vs Image " << j << ": " << score << endl;
         }

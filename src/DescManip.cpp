@@ -30,15 +30,17 @@ void DescManip::meanValue(const std::vector<cv::Mat> &descriptors,
 
     if(descriptors.size() == 1)
     {
-        mean = descriptors[0].clone();
+        mean = descriptors[0].clone();//! 不懂这句话在什么时候会起作用？
         return;
     }
     //binary descriptor
+    //！ 对于二进制描述子，所有的描述子中，某一位中‘1’（或‘0’）多，则把簇中心描述子该位置为‘1’（或‘0’）。
     if (descriptors[0].type()==CV_8U ){
         //determine number of bytes of the binary descriptor
         int L= getDescSizeBytes( descriptors[0]);
         vector<int> sum( L * 8, 0);
 
+        //! 统计描述子每一位中‘1’的个数。
         for(size_t i = 0; i < descriptors.size(); ++i)
         {
             const cv::Mat &d = descriptors[i];
@@ -60,12 +62,15 @@ void DescManip::meanValue(const std::vector<cv::Mat> &descriptors,
         mean = cv::Mat::zeros(1, L, CV_8U);
         unsigned char *p = mean.ptr<unsigned char>();
 
+        //! N2相当于descriptors中描述子个数的1/2，奇数向上进1。
         const int N2 = (int)descriptors.size() / 2 + descriptors.size() % 2;
         for(size_t i = 0; i < sum.size(); ++i)
         {
+            //！ 如果1的个数大于半数，则该位设置为1。
             if(sum[i] >= N2)
             {
                 // set bit
+                //！ sum统计时，相当于是由大端模式存储的，所以如此操作。
                 *p |= 1 << (7 - (i % 8));
             }
 
@@ -73,6 +78,7 @@ void DescManip::meanValue(const std::vector<cv::Mat> &descriptors,
         }
     }
     //non binary descriptor
+    //! 对于非二进制描述子，则计算对应位的均值。
     else{
         assert(descriptors[0].type()==CV_32F );//ensure it is float
 
@@ -91,7 +97,7 @@ static  inline uint32_t distance_8uc1(const cv::Mat &a, const cv::Mat &b);
 
 double DescManip::distance(const cv::Mat &a,  const cv::Mat &b)
 {
-
+    //! 对于二进制描述子使用的是汉明距离，浮点型描述子则用欧氏距离。
     //binary descriptor
     if (a.type()==CV_8U){
 

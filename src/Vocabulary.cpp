@@ -135,6 +135,7 @@ void Vocabulary::create(
 {
     std::vector<std::vector<cv::Mat> > vtf(training_features.size());
     for(size_t i=0;i<training_features.size();i++){
+    	//! rows为features的个数（500）
         vtf[i].resize(training_features[i].rows);
         for(int r=0;r<training_features[i].rows;r++)
             vtf[i][r]=training_features[i].rowRange(r,r+1);
@@ -150,26 +151,31 @@ void Vocabulary::create(
   m_words.clear();
 
   // expected_nodes = Sum_{i=0..L} ( k^i )
-    int expected_nodes =
-        (int)((pow((double)m_k, (double)m_L + 1) - 1)/(m_k - 1));
+  //! 由等比数列求和公式，包括根节点共（1-k^(L+1)）/（1-k）个，k为类别数目，L为层数
+  int expected_nodes = (int)((pow((double)m_k, (double)m_L + 1) - 1)/(m_k - 1));
 
   m_nodes.reserve(expected_nodes); // avoid allocations when creating the tree
 
 
+  //! training_features转换成features
   std::vector<cv::Mat> features;
   getFeatures(training_features, features);
 
 
   // create root
+  //! 构造根节点
   m_nodes.push_back(Node(0)); // root
 
   // create the tree
+  //! k-means构造节点
   HKmeansStep(0, features, 1);
 
   // create the words
+  //! 构建单词。虽有的叶节点都构建为一个单词。
   createWords();
 
   // and set the weight of each node of the tree
+  //! 计算每个单词的词频
   setNodeWeights(training_features);
 
 }
@@ -218,7 +224,7 @@ void Vocabulary::getFeatures(
 
 // --------------------------------------------------------------------------
 
-
+//! K-means聚类过程
 void Vocabulary::HKmeansStep(NodeId parent_id,
                              const std::vector<cv::Mat> &descriptors, int current_level)
 {
@@ -226,16 +232,18 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
     if(descriptors.empty()) return;
 
     // features associated to each cluster
-    std::vector<cv::Mat> clusters;
+    std::vector<cv::Mat> clusters; //! 保存各个簇中心对应的特征值
     std::vector<std::vector<unsigned int> > groups; // groups[i] = [j1, j2, ...]
     // j1, j2, ... indices of descriptors associated to cluster i
 
     clusters.reserve(m_k);
     groups.reserve(m_k);
 
-
+    //！ k-means过程：聚类得到k个簇。
     if((int)descriptors.size() <= m_k)
     {
+        //! 当特征描述子的数目小于k值时，则每个feature为一个簇。
+        //! 这样会出现有些父节点的子节点数是少于k的，但是存在的叶节点还是会一直长到最底层。
         // trivial case: one cluster per feature
         groups.resize(descriptors.size());
 
@@ -258,16 +266,17 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
         while(goon)
         {
             // 1. Calculate clusters
-
+            // 1. 计算并且更新这k个簇
             if(first_time)
             {
                 // random sample
+                //! 1.1 初始化k-means簇，使用k-means++的方法。
                 initiateClusters(descriptors, clusters);
             }
             else
             {
                 // calculate cluster centres
-
+                //！ 1.2 初始化k个簇中心后，重新计算得到各个簇的中心。
                 for(unsigned int c = 0; c < clusters.size(); ++c)
                 {
                     std::vector<cv::Mat> cluster_descriptors;
@@ -277,7 +286,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
                     {
                         cluster_descriptors.push_back(descriptors[*vit]);
                     }
-
+                    //！ 计算cluster_descriptors描述子的簇中心clusters[c]。
                     DescManip::meanValue(cluster_descriptors, clusters[c]);
                 }
 
@@ -295,6 +304,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
             //unsigned int d = 0;
             for(auto  fit = descriptors.begin(); fit != descriptors.end(); ++fit)//, ++d)
             {
+                //! 2.1 获得当前描述子(*fit)距离最近的簇中心icluster。
                 double best_dist = DescManip::distance((*fit), clusters[0]);
                 unsigned int icluster = 0;
 
@@ -309,7 +319,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
                 }
 
                 //assoc.ref<unsigned char>(icluster, d) = 1;
-
+                //! 2.2 把当前描述子(*fit)归入对应的簇。
                 groups[icluster].push_back(fit - descriptors.begin());
                 current_association[ fit - descriptors.begin() ] = icluster;
             }
@@ -324,7 +334,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
             else
             {
                 //goon = !eqUChar(last_assoc, assoc);
-
+                //！ 如果当前聚类后的簇和之前的完全一样，则退出循环。
                 goon = false;
                 for(unsigned int i = 0; i < current_association.size(); i++)
                 {
@@ -347,19 +357,22 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
     } // if must run kmeans
 
     // create nodes
+    //！ 根据聚类得到的k个簇，构建节点。
     for(unsigned int i = 0; i < clusters.size(); ++i)
     {
         NodeId id = m_nodes.size();
         m_nodes.push_back(Node(id));
-        m_nodes.back().descriptor = clusters[i];
+        m_nodes.back().descriptor = clusters[i];//！ 聚类中心的描述子作为节点的描述子
         m_nodes.back().parent = parent_id;
         m_nodes[parent_id].children.push_back(id);
     }
 
     // go on with the next level
+    //！ 继续计算下面的子节点，直到L层。
     if(current_level < m_L)
     {
         // iterate again with the resulting clusters
+        //! 继续计算新生成的子节点下的节点。
         const std::vector<NodeId> &children_ids = m_nodes[parent_id].children;
         for(unsigned int i = 0; i < clusters.size(); ++i)
         {
@@ -376,7 +389,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
 
             if(child_features.size() > 1)
             {
-                HKmeansStep(id, child_features, current_level + 1);
+                HKmeansStep(id, child_features, current_level + 1);//！ 嵌套调用，计算子节点。
             }
         }
     }
@@ -394,7 +407,7 @@ void Vocabulary::initiateClusters
 
 // --------------------------------------------------------------------------
 
-
+//！ 这里的初始化使用了Kmeans++的方法。
 void Vocabulary::initiateClustersKMpp(
   const std::vector<cv::Mat> &pfeatures,
     std::vector<cv::Mat> &clusters) const
@@ -418,13 +431,14 @@ void Vocabulary::initiateClustersKMpp(
   std::vector<double> min_dists(pfeatures.size(), std::numeric_limits<double>::max());
 
   // 1.
-
+  //! 1.1 随机选择一个特征,作为其中一个簇。
   int ifeature = rand()% pfeatures.size();//DUtils::Random::RandomInt(0, pfeatures.size()-1);
 
   // create first cluster
   clusters.push_back(pfeatures[ifeature]);
 
   // compute the initial distances
+  //! 1.2 计算其他描述子与第一个簇的描述子的距离，更新min_dists。
    std::vector<double>::iterator dit;
   dit = min_dists.begin();
   for(auto fit = pfeatures.begin(); fit != pfeatures.end(); ++fit, ++dit)
@@ -435,6 +449,8 @@ void Vocabulary::initiateClustersKMpp(
   while((int)clusters.size() < m_k)
   {
     // 2.
+    //! 2 计算每一个描述子和最新的簇中心的距离，如果与该中心更近则更新min_dists。
+    //! 注：第一次进来的时候不会跟新，重复计算了一次！！！
     dit = min_dists.begin();
     for(auto  fit = pfeatures.begin(); fit != pfeatures.end(); ++fit, ++dit)
     {
@@ -446,10 +462,12 @@ void Vocabulary::initiateClustersKMpp(
     }
 
     // 3.
+    //！ 3.1 计算所有min_dists的总和。
     double dist_sum = std::accumulate(min_dists.begin(), min_dists.end(), 0.0);
 
     if(dist_sum > 0)
     {
+      //！ 3.2 获取另外一个簇中心。距离大（在dist_sum中占据的长度就越大），被取中的概率大。
       double cut_d;
       do
       {
@@ -491,7 +509,8 @@ void Vocabulary::createWords()
     m_words.reserve( (int)pow((double)m_k, (double)m_L) );
 
 
-    auto  nit = m_nodes.begin(); // ignore root
+    auto  nit = m_nodes.begin();// ignore root
+    //! 遍历节点nodes。
     for(++nit; nit != m_nodes.end(); ++nit)
     {
       if(nit->isLeaf())
@@ -505,12 +524,21 @@ void Vocabulary::createWords()
 
 // --------------------------------------------------------------------------
 
+//! 视觉单词有4种权重计算方法：
+//! 1.词频Term Frequency (TF)： 
+//!    wi = nid/nd,   nid--是单词i在图像d中出现的次数, nd--是图像d中单词的数量。
+//! 2.逆向文件频率Inverse Document Frequency (IDF):
+//!    wi = log(N/Ni),  N--是图像数量，Ni--是包含单词i的图像数量。
+//! 3.词频-逆向文件频率Term Frequency - Inverse Document Frequency (TF-IDF):
+//!    wi = nid/nd * log(N/Ni),
+//! 4.二值
+//!    wi = 1,if word is present; 0,otherwise.
 
 void Vocabulary::setNodeWeights
   (const std::vector<std::vector<cv::Mat> > &training_features)
 {
-  const unsigned int NWords = m_words.size();
-  const unsigned int NDocs = training_features.size();
+  const unsigned int NWords = m_words.size();//! 单词数，即叶子节点的数量
+  const unsigned int NDocs = training_features.size();//! 图像数量
 
   if(m_weighting == TF || m_weighting == BINARY)
   {
@@ -528,19 +556,20 @@ void Vocabulary::setNodeWeights
     std::vector<unsigned int> Ni(NWords, 0);
     std::vector<bool> counted(NWords, false);
 
-
+    //! 遍历图像
     for(auto mit = training_features.begin(); mit != training_features.end(); ++mit)
     {
       fill(counted.begin(), counted.end(), false);
-
+      //! 遍历一幅图像中的描述子
       for(auto fit = mit->begin(); fit < mit->end(); ++fit)
       {
         WordId word_id;
+          //! 找到该描述子对应的单词
         transform(*fit, word_id);
 
         if(!counted[word_id])
         {
-          Ni[word_id]++;
+          Ni[word_id]++;//! Ni为包含单词i的图像数量。
           counted[word_id] = true;
         }
       }
@@ -552,7 +581,7 @@ void Vocabulary::setNodeWeights
       if(Ni[i] > 0)
       {
         m_words[i]->weight = log((double)NDocs / (double)Ni[i]);
-      }// else // This cannot occur if using kmeans++
+      }// else // This cannot occur if using kmeans++ //! 每个节点都会至少包含一个描述子
     }
 
   }
@@ -615,7 +644,7 @@ WordId Vocabulary::transform
 }
 
 // --------------------------------------------------------------------------
-
+//! 根据图像描述子features计算图像的词袋单词v
 void Vocabulary::transform(
         const cv::Mat& features, BowVector &v) const
 {
@@ -636,7 +665,7 @@ void Vocabulary::transform(
     LNorm norm;
     bool must = m_scoring_object->mustNormalize(norm);
 
-
+    //! 1. 把图像属于的单词按照顺序排列，包含权重。构成图像向量map<wordId,weight>
     if(m_weighting == TF || m_weighting == TF_IDF)
     {
         for(int r=0;r<features.rows;r++)
@@ -644,6 +673,7 @@ void Vocabulary::transform(
             WordId id;
             WordValue w;
             // w is the idf value if TF_IDF, 1 if TF
+            //! 找到feature属于的叶子节点，并且返回对应的单词id和词频
             transform(features.row(r), id, w);
             // not stopped
             if(w > 0)  v.addWeight(id, w);
@@ -674,6 +704,7 @@ void Vocabulary::transform(
         } // if add_features
     } // if m_weighting == ...
 
+    //! 按照权重归一化向量
     if(must) v.normalize(norm);
 
 }
@@ -865,7 +896,7 @@ void Vocabulary::transform(const cv::Mat &feature,
 }
 
 
-
+//! 找到feature属于的叶子节点，并且返回对应的单词id和词频
 void Vocabulary::transform(const cv::Mat &feature,
   WordId &word_id, WordValue &weight ) const
 {
@@ -885,6 +916,7 @@ void Vocabulary::transform(const cv::Mat &feature,
           auto const  &nodes = m_nodes[final_id].children;
           uint64_t best_d = std::numeric_limits<uint64_t>::max();
           int idx=0,bestidx=0;
+          //! 遍历子节点
            for(const auto  &id:nodes)
           {
               //compute distance
@@ -899,7 +931,7 @@ void Vocabulary::transform(const cv::Mat &feature,
               idx++;
           }
         // std::cout<<bestidx<<" "<<final_id<<" d:"<<best_d<<" "<<m_nodes[final_id].descriptor<<  std::endl<<std::endl;
-      } while( !m_nodes[final_id].isLeaf() );
+      } while( !m_nodes[final_id].isLeaf() );//! 直到找到该特征描述子对应的叶子节点。
    }
 
 //      uint64_t ret=0;

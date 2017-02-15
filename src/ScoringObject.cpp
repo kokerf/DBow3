@@ -19,7 +19,7 @@ const double GeneralScoring::LOG_EPS = log(DBL_EPSILON); // FLT_EPSILON
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-
+//! L1范数得分计算。计算两个图像向量的相似度得分
 double L1Scoring::score(const BowVector &v1, const BowVector &v2) const
 {
   BowVector::const_iterator v1_it, v2_it;
@@ -30,7 +30,8 @@ double L1Scoring::score(const BowVector &v1, const BowVector &v2) const
   v2_it = v2.begin();
   
   double score = 0;
-  
+
+  //! 遍历两个向量的元素
   while(v1_it != v1_end && v2_it != v2_end)
   {
     const WordValue& vi = v1_it->second;
@@ -38,6 +39,9 @@ double L1Scoring::score(const BowVector &v1, const BowVector &v2) const
     
     if(v1_it->first == v2_it->first)
     {
+      //! score += ||vi - wi||;
+      //! score = 1 - 0.5*score;
+      //! 这里相当起到一个归一化的作用。如果两个向量的元素都没有相同的，则score为0，如果用1去减，则有问题。
       score += fabs(vi - wi) - fabs(vi) - fabs(wi);
       
       // move v1 and v2 forward
