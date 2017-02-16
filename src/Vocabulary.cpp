@@ -276,7 +276,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
             else
             {
                 // calculate cluster centres
-                //！ 1.2 初始化k个簇中心后，重新计算得到各个簇的中心。
+                //! 1.2 初始化k个簇中心后，重新计算得到各个簇的中心。
                 for(unsigned int c = 0; c < clusters.size(); ++c)
                 {
                     std::vector<cv::Mat> cluster_descriptors;
@@ -286,7 +286,8 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
                     {
                         cluster_descriptors.push_back(descriptors[*vit]);
                     }
-                    //！ 计算cluster_descriptors描述子的簇中心clusters[c]。
+                    //! 计算cluster_descriptors描述子的簇中心clusters[c]。
+                    //! 其实这个重新计算的簇中心可能不是某个描述子了。
                     DescManip::meanValue(cluster_descriptors, clusters[c]);
                 }
 
@@ -438,7 +439,7 @@ void Vocabulary::initiateClustersKMpp(
   clusters.push_back(pfeatures[ifeature]);
 
   // compute the initial distances
-  //! 1.2 计算其他描述子与第一个簇的描述子的距离，更新min_dists。
+  //! 1.2 计算其他描述子与第一个簇中心的描述子的距离，更新min_dists。
    std::vector<double>::iterator dit;
   dit = min_dists.begin();
   for(auto fit = pfeatures.begin(); fit != pfeatures.end(); ++fit, ++dit)
@@ -674,10 +675,10 @@ void Vocabulary::transform(
             WordId id;
             WordValue w;
             // w is the idf value if TF_IDF, 1 if TF
-            //! 找到feature属于的叶子节点，并且返回对应的单词id和词频
+            //! 找到feature属于的叶子节点，并且返回对应的单词id和IDF
             transform(features.row(r), id, w);
             // not stopped
-            //! 在图像向量中增加对应位置id的权重w
+            //! 在图像向量中增加对应位置id的权重w，相当于niIt*idf(i)
             if(w > 0)  v.addWeight(id, w);
         }
 
@@ -686,7 +687,7 @@ void Vocabulary::transform(
             // unnecessary when normalizing
             const double nd = v.size();
             for(BowVector::iterator vit = v.begin(); vit != v.end(); vit++)
-                vit->second /= nd;
+                vit->second /= nd;//! 这里相当于niIt/nIt*idf(i)，最终图像It的词袋向量中的权重为TF_IDF
         }
 
     }
@@ -736,20 +737,21 @@ void Vocabulary::transform(
       WordValue w;
       // w is the idf value if TF_IDF, 1 if TF
 
-      //! 找到feature属于的叶子节点，并且返回对应的单词id和词频
+      //! 找到feature属于的叶子节点，并且返回对应的单词id和IDF
       transform(*fit, id, w);
 
       // not stopped
-      //! 在图像向量中增加对应位置id的权重w
+      //! 在图像向量中增加对应位置id的权重w，相当于niIt*idf(i)
       if(w > 0) v.addWeight(id, w);
     }
 
+    //! 如果不进行归一化处理，则进入
     if(!v.empty() && !must)
     {
       // unnecessary when normalizing
       const double nd = v.size();
       for(BowVector::iterator vit = v.begin(); vit != v.end(); vit++)
-        vit->second /= nd;
+        vit->second /= nd;//! 这里相当于niIt/nIt*idf(i)，最终图像It的词袋向量中的权重为TF_IDF
     }
 
   }
@@ -901,7 +903,7 @@ void Vocabulary::transform(const cv::Mat &feature,
 }
 
 
-//! 找到feature属于的叶子节点，并且返回对应的单词id和词频
+//! 找到feature属于的叶子节点，并且返回对应的单词id和weight
 void Vocabulary::transform(const cv::Mat &feature,
   WordId &word_id, WordValue &weight ) const
 {

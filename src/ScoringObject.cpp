@@ -39,9 +39,7 @@ double L1Scoring::score(const BowVector &v1, const BowVector &v2) const
     
     if(v1_it->first == v2_it->first)
     {
-      //! score += ||vi - wi||;
-      //! score = 1 - 0.5*score;
-      //! 这里相当起到一个归一化的作用。如果两个向量的元素都没有相同的，则score为0，如果用1去减，则有问题。
+      //! Ref: http://www-inst.eecs.berkeley.edu/~cs294-6/fa06/papers/nister_stewenius_cvpr2006.pdf
       score += fabs(vi - wi) - fabs(vi) - fabs(wi);
       
       // move v1 and v2 forward

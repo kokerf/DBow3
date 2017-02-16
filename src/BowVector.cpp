@@ -39,7 +39,7 @@ void BowVector::addWeight(WordId id, WordValue v)
   //! 这个不就相当于(id==vit->first)？第一次进来的时候vit-first为0，如果id为0就有问题？
   if(vit != this->end() && !(this->key_comp()(id, vit->first)))
   {
-    vit->second += v;
+    vit->second += v;//! 相当于niIt*idf(i)
   }
   else
   {
