@@ -78,7 +78,7 @@ Database& Database::operator=
 }
 
 // --------------------------------------------------------------------------
-
+//! 输入为多个图像的描述子，先一一转换为单个图像的描述子再添加
 EntryId Database::add(
   const  cv::Mat &features,
   BowVector *bowvec, FeatureVector *fvec)
@@ -88,7 +88,7 @@ EntryId Database::add(
     add(vf,bowvec,fvec);
 }
 
-//! 把features转换成图像向量，并且把图像向量添加到数据库中。
+//! 输入为一个图像的描述子。把features转换成图像向量，并且把图像向量添加到数据库中。
 EntryId Database::add(
   const std::vector<cv::Mat> &features,
   BowVector *bowvec, FeatureVector *fvec)
@@ -96,6 +96,7 @@ EntryId Database::add(
   BowVector aux;
   BowVector& v = (bowvec ? *bowvec : aux);
 
+  //! m_use_di--是否使用正向索引
   if(m_use_di && fvec != NULL)
   {
     m_voc->transform(features, v, *fvec, m_dilevels); // with features
@@ -114,6 +115,7 @@ EntryId Database::add(
   }
   else
   {
+    //! 把描述子转换为词袋向量v
     m_voc->transform(features, v); // with features
     return add(v);
   }
@@ -121,7 +123,7 @@ EntryId Database::add(
 
 // ---------------------------------------------------------------------------
 
-//! 在数据库中添加图形向量v，并且构建逆向索引。
+//! 在数据库中添加词袋向量v/fv，并且构建逆序/顺序索引。
 EntryId Database::add(const BowVector &v,
   const FeatureVector &fv)
 {
@@ -130,6 +132,7 @@ EntryId Database::add(const BowVector &v,
   BowVector::const_iterator vit;
   std::vector<unsigned int>::const_iterator iit;
 
+  //! 在正向索引文件中添加fv
   if(m_use_di)
   {
     // update direct file
@@ -231,6 +234,7 @@ void Database::allocate(int nd, int ni)
 
 // --------------------------------------------------------------------------
 //! 输入为一幅图像的features(cv::Mat)
+//! 在数据库中索引与其相似的图像
 void Database::query(
   const  cv::Mat &features,
   QueryResults &ret, int max_results, int max_id) const
@@ -243,18 +247,19 @@ void Database::query(
 
 
 //! 输入为一幅图像的features(std::vector<cv::Mat>)
+//! 在数据库中索引与其相似的图像
 void Database::query(
   const std::vector<cv::Mat> &features,
   QueryResults &ret, int max_results, int max_id) const
 {
   BowVector vec;
-  m_voc->transform(features, vec);
+  m_voc->transform(features, vec);//! 先把描述子都转换为词袋向量
   query(vec, ret, max_results, max_id);
 }
 
 // --------------------------------------------------------------------------
 
-
+//! 输入为词袋向量BowVector，在数据库中索引
 void Database::query(
   const BowVector &vec,
   QueryResults &ret, int max_results, int max_id) const
