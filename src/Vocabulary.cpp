@@ -135,7 +135,7 @@ void Vocabulary::create(
 {
     std::vector<std::vector<cv::Mat> > vtf(training_features.size());
     for(size_t i=0;i<training_features.size();i++){
-    	//! rows为features的个数（500）
+      //! rows为features的个数（500）
         vtf[i].resize(training_features[i].rows);
         for(int r=0;r<training_features[i].rows;r++)
             vtf[i][r]=training_features[i].rowRange(r,r+1);
@@ -232,7 +232,9 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
     if(descriptors.empty()) return;
 
     // features associated to each cluster
-    std::vector<cv::Mat> clusters; //! 保存各个簇中心对应的特征值
+    //! 保存各个簇中心对应的特征值
+    std::vector<cv::Mat> clusters;
+    //! 在父节点parent_id下所有的descripters的编号就是jk,groups里面存放了该父节点下簇i下的描述子编号。
     std::vector<std::vector<unsigned int> > groups; // groups[i] = [j1, j2, ...]
     // j1, j2, ... indices of descriptors associated to cluster i
 
@@ -249,7 +251,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
 
         for(unsigned int i = 0; i < descriptors.size(); i++)
         {
-            groups[i].push_back(i);
+            groups[i].push_back(i);//! 每个描述子单独为一个簇，第i个簇只包含描述子i。
             clusters.push_back(descriptors[i]);
         }
     }
@@ -261,6 +263,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
         bool goon = true;
 
         // to check if clusters move after iterations
+        //! vector的大小和该父节点下所有features的个数，保存了对应feature所属于的簇编号
         std::vector<int> last_association, current_association;
 
         while(goon)
