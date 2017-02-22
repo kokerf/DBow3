@@ -324,6 +324,12 @@ public:
             //! 给Bow向量赋予权重
             v.addWeight(wid,weight);
         }
+
+        //! 归一化呢！！
+        GeneralScoring* m_scoring_object = new L1Scoring;
+        LNorm norm;
+        bool must = m_scoring_object->mustNormalize(norm);
+        v.normalize(norm);
     }
 
     uint32_t _aligment,_nblocks;
