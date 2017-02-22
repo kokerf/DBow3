@@ -39,9 +39,10 @@ endif()
 
 
 #
-OPTION(BUILD_UTILS	"Set to OFF to not build utils" ON)
-OPTION(USE_CONTRIB 	"Set to ON if contrib are installed" OFF)
-OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
+OPTION(BUILD_UTILS  "Set to OFF to not build utils" ON)
+OPTION(BUILD_TESTS  "Set to OFF to not build tests" ON)
+OPTION(USE_CONTRIB  "Set to ON if contrib are installed" OFF)
+OPTION(BUILD_SHARED_LIBS    "Set to OFF to build static libraries" ON)
 
 # ----------------------------------------------------------------------------
 #   Find Dependencies
@@ -64,7 +65,7 @@ SET(REQUIRED_LIBRARIES ${REQUIRED_LIBRARIES} ${OpenCV_LIBS})
 #   PROJECT CONFIGURATION
 #   force some variables that could be defined in the command line to be written to cache
 # ----------------------------------------------------------------------------
-OPTION(INSTALL_DOC 	"Set to ON to build/install Documentation" OFF)
+OPTION(INSTALL_DOC  "Set to ON to build/install Documentation" OFF)
 IF (INSTALL_DOC)
     FIND_PACKAGE(Doxygen REQUIRED)
     MESSAGE( STATUS "INSTALL_DOC:         ${INSTALL_DOC} ")
@@ -92,8 +93,8 @@ INSTALL(FILES "${PROJECT_BINARY_DIR}/Find${PROJECT_NAME}.cmake" DESTINATION lib/
 # ----------------------------------------------------------------------------
 #   Program Optimization and debug (Extracted from OpenCV)
 # ----------------------------------------------------------------------------
-set(WARNINGS_ARE_ERRORS 		OFF CACHE BOOL "Treat warnings as errors")
-set(WHOLE_PROGRAM_OPTIMIZATION 	OFF CACHE BOOL "Flags for whole program optimization.")
+set(WARNINGS_ARE_ERRORS         OFF CACHE BOOL "Treat warnings as errors")
+set(WHOLE_PROGRAM_OPTIMIZATION  OFF CACHE BOOL "Flags for whole program optimization.")
 
 set(EXTRA_C_FLAGS "")
 set(EXTRA_C_FLAGS_RELEASE "")
@@ -103,8 +104,8 @@ set(EXTRA_EXE_LINKER_FLAGS_RELEASE "")
 set(EXTRA_EXE_LINKER_FLAGS_DEBUG "")
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR MINGW)
-    set(ENABLE_PROFILING 		OFF CACHE BOOL "Enable profiling in the GCC compiler (Add flags: -g -pg)")
-    set(USE_OMIT_FRAME_POINTER 	ON CACHE BOOL "Enable -fomit-frame-pointer for GCC")
+    set(ENABLE_PROFILING        OFF CACHE BOOL "Enable profiling in the GCC compiler (Add flags: -g -pg)")
+    set(USE_OMIT_FRAME_POINTER  ON CACHE BOOL "Enable -fomit-frame-pointer for GCC")
     if(${CMAKE_SYSTEM_PROCESSOR} MATCHES arm*) # We can use only -O2 because the -O3 causes gcc crash
         set(USE_O2 ON CACHE BOOL "Enable -O2 for GCC")
         set(USE_FAST_MATH OFF CACHE BOOL "Enable -ffast-math for GCC")
