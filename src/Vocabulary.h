@@ -34,7 +34,7 @@ public:
   /**
    * Initiates an empty vocabulary
    * @param k branching factor
-   * @param L depth levels
+   * @param L depth levels //! 根节点是0，不包括根节点是L层
    * @param weighting weighting type
    * @param scoring scoring type
    */

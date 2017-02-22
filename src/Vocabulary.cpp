@@ -151,7 +151,7 @@ void Vocabulary::create(
   m_words.clear();
 
   // expected_nodes = Sum_{i=0..L} ( k^i )
-  //! 由等比数列求和公式，包括根节点共（1-k^(L+1)）/（1-k）个，k为类别数目，L为层数
+  //! 由等比数列求和公式，包括根节点共 1 + k + ... + k^L =（1-k^(L+1)）/（1-k）个，k为类别数目，L为层数
   int expected_nodes = (int)((pow((double)m_k, (double)m_L + 1) - 1)/(m_k - 1));
 
   m_nodes.reserve(expected_nodes); // avoid allocations when creating the tree
@@ -241,7 +241,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
     clusters.reserve(m_k);
     groups.reserve(m_k);
 
-    //！ k-means过程：聚类得到k个簇。
+    //! k-means过程：聚类得到k个簇。
     if((int)descriptors.size() <= m_k)
     {
         //! 当特征描述子的数目小于k值时，则每个feature为一个簇。
@@ -338,7 +338,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
             else
             {
                 //goon = !eqUChar(last_assoc, assoc);
-                //！ 如果当前聚类后的簇和之前的完全一样，则退出循环。
+                //! 如果当前聚类后的簇和之前的完全一样，则退出循环。
                 goon = false;
                 for(unsigned int i = 0; i < current_association.size(); i++)
                 {
@@ -361,18 +361,18 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
     } // if must run kmeans
 
     // create nodes
-    //！ 根据聚类得到的k个簇，构建节点。
+    //! 根据聚类得到的k个簇，构建节点。
     for(unsigned int i = 0; i < clusters.size(); ++i)
     {
         NodeId id = m_nodes.size();
         m_nodes.push_back(Node(id));
-        m_nodes.back().descriptor = clusters[i];//！ 聚类中心的描述子作为节点的描述子
+        m_nodes.back().descriptor = clusters[i];//! 聚类中心的描述子作为节点的描述子
         m_nodes.back().parent = parent_id;
         m_nodes[parent_id].children.push_back(id);
     }
 
     // go on with the next level
-    //！ 继续计算下面的子节点，直到L层。
+    //! 继续计算下面的子节点，直到L层。
     if(current_level < m_L)
     {
         // iterate again with the resulting clusters
@@ -393,7 +393,7 @@ void Vocabulary::HKmeansStep(NodeId parent_id,
 
             if(child_features.size() > 1)
             {
-                HKmeansStep(id, child_features, current_level + 1);//！ 嵌套调用，计算子节点。
+                HKmeansStep(id, child_features, current_level + 1);//! 嵌套调用，计算子节点。
             }
         }
     }
@@ -411,7 +411,7 @@ void Vocabulary::initiateClusters
 
 // --------------------------------------------------------------------------
 
-//！ 这里的初始化使用了Kmeans++的方法。
+//! 这里的初始化使用了Kmeans++的方法。
 void Vocabulary::initiateClustersKMpp(
   const std::vector<cv::Mat> &pfeatures,
     std::vector<cv::Mat> &clusters) const
@@ -466,12 +466,12 @@ void Vocabulary::initiateClustersKMpp(
     }
 
     // 3.
-    //！ 3.1 计算所有min_dists的总和。
+    //! 3.1 计算所有min_dists的总和。
     double dist_sum = std::accumulate(min_dists.begin(), min_dists.end(), 0.0);
 
     if(dist_sum > 0)
     {
-      //！ 3.2 获取另外一个簇中心。距离大（在dist_sum中占据的长度就越大），被取中的概率大。
+      //! 3.2 获取另外一个簇中心。距离大（在dist_sum中占据的长度就越大），被取中的概率大。
       double cut_d;
       do
       {

@@ -34,7 +34,7 @@ void DescManip::meanValue(const std::vector<cv::Mat> &descriptors,
         return;
     }
     //binary descriptor
-    //！ 对于二进制描述子，所有的描述子中，某一位中‘1’（或‘0’）多，则把簇中心描述子该位置为‘1’（或‘0’）。
+    //! 对于二进制描述子，所有的描述子中，某一位中‘1’（或‘0’）多，则把簇中心描述子该位置为‘1’（或‘0’）。
     if (descriptors[0].type()==CV_8U ){
         //determine number of bytes of the binary descriptor
         int L= getDescSizeBytes( descriptors[0]);
@@ -66,11 +66,11 @@ void DescManip::meanValue(const std::vector<cv::Mat> &descriptors,
         const int N2 = (int)descriptors.size() / 2 + descriptors.size() % 2;
         for(size_t i = 0; i < sum.size(); ++i)
         {
-            //！ 如果1的个数大于半数，则该位设置为1。
+            //! 如果1的个数大于半数，则该位设置为1。
             if(sum[i] >= N2)
             {
                 // set bit
-                //！ sum统计时，相当于是由大端模式存储的，所以如此操作。
+                //! sum统计时，相当于是由大端模式存储的，所以如此操作。
                 *p |= 1 << (7 - (i % 8));
             }
 
