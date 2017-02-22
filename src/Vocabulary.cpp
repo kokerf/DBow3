@@ -1183,6 +1183,7 @@ void Vocabulary::save(cv::FileStorage &f,
 
 }
 
+//! 写二进制文件
 void Vocabulary::toStream(  std::ostream &out_str, bool compressed) const throw(std::exception){
 
     uint64_t sig=88877711233;//magic number describing the file
@@ -1514,11 +1515,13 @@ void Vocabulary::clear(){
     m_words.clear();
 
 }
+//! 返回描述子的字节数
 int Vocabulary::getDescritorSize()const
 {
     if (m_words.size()==0)return -1;
     else return m_words[0]->descriptor.cols;
 }
+//! 描述子cv::Mat的type() CV_8UC1
 int Vocabulary::getDescritorType()const{
 
     if (m_words.size()==0)return -1;

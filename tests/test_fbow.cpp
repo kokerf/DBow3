@@ -61,7 +61,7 @@ public:
     int getNodePos( Vocabulary::Node & node){
 
     }
-    struct node_info{
+    struct node_info{//! 一个结构体占64位
             uint32_t id_or_childblock; //if id ,msb is 1.
 
         float weight;
@@ -71,6 +71,7 @@ public:
         inline uint32_t getId()const{return ( id_or_childblock&0x7FFFFFFF);}
     };
 
+    //! parent_children[i] 保存父节点i，以及所含有的子节点的编号集合
     std::map<uint32_t,set<uint32_t > > parent_children;
     void create(Vocabulary &voc){
         if(voc.getDescritorType()==CV_8UC1) _aligment=8;
@@ -79,18 +80,26 @@ public:
 
 
         //consider possible aligment of each descriptor adding offsets at the end
-        _desc_size_bytes=voc.getDescritorSize();
-        _desc_size_bytes_al=_desc_size_bytes/_aligment;
-        if(_desc_size_bytes%_aligment!=0) _desc_size_bytes_al++;
-        _desc_size_bytes=_desc_size_bytes_al*_aligment;
+        //! 计算一个描述子字节数（以_aligment位为一字节）。如果size不能被_aligment整除，则补齐到可以整除
+        //! 以ORB描述子为例 size 32 _aligment 8
+        _desc_size_bytes=voc.getDescritorSize();//! 描述子字节数 =32
+        _desc_size_bytes_al=_desc_size_bytes/_aligment;//! =32/8=4
+        if(_desc_size_bytes%_aligment!=0) _desc_size_bytes_al++;//! =4
+        _desc_size_bytes=_desc_size_bytes_al*_aligment;//! =4*8=32
 
 
+        //! 这里是计算一个uint32_t变量的字节数
         int foffnbytes_alg=sizeof(uint32_t)/_aligment;
         if(sizeof(uint32_t)%_aligment!=0) foffnbytes_alg++;
+        //! 该整型变量占据的空间。之后就是描述子开始的位置
         _feature_off_start=foffnbytes_alg*_aligment;
+        //! 整型变量+mk个描述子 -> 子节点信息开始位置
         _child_off_start=_feature_off_start+voc.m_k*_desc_size_bytes ;//where do children information start from the start of the block
 
 
+        //!【重要】block的保存形式：
+        //!     父节点id    |   所有子节点描述子   | 子节点信息node_info |
+        //! (              |_feature_off_start |_child_off_start)  |_block_size_bytes
         //block: nvalid|f0 f1 .. fn|ni0 ni1 ..nin
         _block_size_bytes=_feature_off_start+ voc.m_k * (_desc_size_bytes + sizeof(node_info));
         _block_size_bytes_al=_block_size_bytes/_aligment;
@@ -117,8 +126,10 @@ public:
 
         cerr<<"creating index"<<endl;
         std::map<uint32_t,uint32_t> nid_vpos;
+        //! 遍历所有的节点
         for(size_t i=0;i<voc.m_nodes.size();i++){
             auto &n=voc.m_nodes[i];
+            //! 如果不是根节点
             if (n.id!=0) {
                 parent_children[n.parent].insert(n.id);
                 nid_vpos[n.id]=i;
@@ -130,9 +141,11 @@ public:
         //now, we know the number of blocks
 
         //how many blocks (oversampled)
+        //! 每一个父节点构成一个block
         _nblocks= parent_children.size();
         cout<<_nblocks<<endl;
         //give memory
+        //! 为block分配内存，并且把每一位都赋值为1
         _total_size=_block_size_bytes*_nblocks;
         _data=(char*)aligned_alloc(_aligment,_total_size);
         memset(_data,0xffff,_total_size);
@@ -146,19 +159,25 @@ public:
         std::map<uint32_t,uint32_t> block_offset;
         uint32_t currblock=0;//expressed in blocks
         uint32_t descsize=voc.getDescritorSize();
+        //! 1.向每个block添加 父节点id和所有子节点的描述子
+        //! 遍历父节点
         for(const auto &Block:parent_children)
          {
-            block_offset[Block.first]=currblock;
-            assert( !(currblock & 0x80000000));//32 bits 100000000...0.check msb is not set
-            uint64_t block_offset_bytes=currblock*_block_size_bytes;
+            block_offset[Block.first]=currblock;//! 保存该节点属于的block序号
+            assert( !(currblock & 0x80000000));//32 bits 100000000...0.check msb is not set//! 确定最高位不为1 *-*?
+            uint64_t block_offset_bytes=currblock*_block_size_bytes;//! currblock起始位置
             int idx=0;
+            //! 1.1 第一位保存了该block的节点的子节点个数
              *reinterpret_cast<uint32_t*>(_data+block_offset_bytes)=Block.second.size();
+            //! 遍历子节点
             for(const auto &c:Block.second){
+                //! 得到当前子节点
                 const auto &node=voc.m_nodes[nid_vpos[c]];
+                //! 1.2 按照字节（char）把该节点的描述子全部拷贝到当前block里面
                 memcpy(_data+block_offset_bytes+_feature_off_start+idx*_desc_size_bytes,node.descriptor.ptr<char>(0),descsize);
                 assert( block_offset_bytes+idx*_desc_size_bytes +descsize < _total_size );
                 //now, the offset to the children block//unkonwn yet
-                idx++;
+                idx++;//! 下一个节点
             }
             currblock++;
         }
@@ -166,22 +185,30 @@ public:
         //print sons of node 6
 
         //now, we can write the offsets
+        //! 向每个block添加node_info
+        //! 遍历父节点
         for(const auto &Block:parent_children)
          {
 
             int idx=0;
-            uint64_t block_offset_bytes=currblock*_block_size_bytes;
+            uint64_t block_offset_bytes=currblock*_block_size_bytes;//! currblock起始位置
+            //! 遍历子节点
             for(const auto &c:Block.second){
+                //! 得到当前子节点
                 const auto &node=voc.m_nodes[nid_vpos[c]];
+                //! 当前子节点idx的node_info数据在block的起始指针位置
                 node_info *ptr_child=(node_info*)(_data+block_offset_bytes+_child_off_start+sizeof(node_info)*idx);
 
+                //! 如果不是叶子节点，则node_info中id指向该子节点所属于的block序号
                 if (!node.isLeaf()) {
                     assert(block_offset.count(node.id));
+                    //! 指向下该子节点所属于的block序号
                     ptr_child->id_or_childblock=block_offset[node.id];//childblock
                 }
+                //! 如果是叶子节点，则把最高位设置为1，node_info中id指向单词的id，并且拷贝权重
                 else{
                     //set the node id (ensure msb is set)
-                    assert(!(node.id & 0x80000000));//check
+                    assert(!(node.id & 0x80000000));//check //! 一般子节点数目不会这么多的
                     ptr_child->id_or_childblock=node.word_id;
                     ptr_child->id_or_childblock|=0x80000000;//set the msb to one to distinguish from offset
                     //now,set the weight too
@@ -218,29 +245,33 @@ public:
         return (node_info*)(_data+ (block*_block_size_bytes)+_child_off_start+sizeof(node_info)*id);
     }
 
-
-    void transform(const cv::Mat &desc,DBoW3::BowVector &v){
-
-        for(int i=0;i<desc.rows;i++){
-
-            //
+    //! 把图像所有描述子转换成Dbow向量
+    void transform(const cv::Mat &desc,DBoW3::BowVector &v)
+    {
+        //! 遍历所有描述子
+        for(int i=0;i<desc.rows;i++)
+        {
             bool done=false;
             int block=0;
             float weight;int wid;
-            while(!done){
+            while(!done)
+            {
                 node_info *ni;//=getBestOfBlock(block,desc.row(i));
-{
+                {
                     uint64_t block_start=block*_block_size_bytes;
                     uint32_t mind=std::numeric_limits<uint32_t>::max();
-                    uint32_t n=*reinterpret_cast<uint32_t*>(_data+block_start);
-                    const uint64_t *dptr=desc.ptr<uint64_t>(i);
+                    uint32_t n=*reinterpret_cast<uint32_t*>(_data+block_start);//! 返回该block的子节点个数
+                    const uint64_t *dptr=desc.ptr<uint64_t>(i);//! 用的是orb,32*8位，这里图像描述子指针一次取64位，相当于dptr[4]
                     int bestIdx=0;
                     int n4=n/4;
                     uint64_t _toff=block_start+_feature_off_start;
                     int i=0;
+                    //! 一次比较4个描述子。这里遍历到n/4-1,余数没有计算
+                    //! 其实我认为这里没必要这么做，一个一个遍历不也一样吗？ *-*?
                     for(i=0;i<n4;i+=4)
                     {
                         uint64_t  *ptr=(uint64_t*)(_data+_toff+_desc_size_bytes*i);
+                        //! __builtin_popcountl计算1的个数
                         uint32_t d=__builtin_popcountl(dptr[0]^ptr[0])+ __builtin_popcountl(dptr[1]^ptr[1])+__builtin_popcountl(dptr[2]^ptr[2])+__builtin_popcountl(dptr[3]^ptr[3]);
                         uint64_t  *ptr_2=(uint64_t*)(_data+_toff+_desc_size_bytes*(i+1));
                         uint32_t d2=__builtin_popcountl(dptr[0]^ptr_2[0])+ __builtin_popcountl(dptr[1]^ptr_2[1])+__builtin_popcountl(dptr[2]^ptr_2[2])+__builtin_popcountl(dptr[3]^ptr_2[3]);
@@ -266,26 +297,31 @@ public:
                         }
 
                     }
-                for( ;i<n;i++)
-                {
-                    uint64_t  *ptr=(uint64_t*)(_data+_toff+_desc_size_bytes*i);
-                    uint32_t d=__builtin_popcountl(dptr[0]^ptr[0])+ __builtin_popcountl(dptr[1]^ptr[1])+__builtin_popcountl(dptr[2]^ptr[2])+__builtin_popcountl(dptr[3]^ptr[3]);
-                    if (d<mind){
-                        mind=d;
-                        bestIdx=i;
+                    //! 这里计算余数
+                    for( ;i<n;i++)
+                    {
+                        uint64_t  *ptr=(uint64_t*)(_data+_toff+_desc_size_bytes*i);
+                        uint32_t d=__builtin_popcountl(dptr[0]^ptr[0])+ __builtin_popcountl(dptr[1]^ptr[1])+__builtin_popcountl(dptr[2]^ptr[2])+__builtin_popcountl(dptr[3]^ptr[3]);
+                        if (d<mind){
+                            mind=d;
+                            bestIdx=i;
+                        }
                     }
-                }
-                ni= (node_info*)(_data+ block_start+_child_off_start+sizeof(node_info)*bestIdx);
+                    //! 找到距离最小的那个子节点的node_info位置，把给位置的值给ni。接下去就是从该节点的子节点开始
+                    ni= (node_info*)(_data+ block_start+_child_off_start+sizeof(node_info)*bestIdx);
 
                 }
+                //! 如果ni已经是子节点，那么就获取权重，结束循环
                 if (ni->isleaf()){
                     wid=ni->getId();
                     weight=ni->weight;
                     done=true;
                 }
+                //! 否则，去下一个子节点的block
                 else//go to children block
                     block=ni->getChildBlock();
             }
+            //! 给Bow向量赋予权重
             v.addWeight(wid,weight);
         }
     }
@@ -335,7 +371,7 @@ public:
 };
 }
 
-
+//! 把词袋的词典树转换成block的形式，加快查询速度。
 int main(int argc,char **argv){
     if (argc!=4){cerr<<"Usage voc.dbo3 image out.fbow"<<endl;return -1;}
     DBoW3::Vocabulary voc;
