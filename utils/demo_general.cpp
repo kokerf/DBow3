@@ -58,6 +58,7 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 #endif
 #ifdef USE_CONTRIB
     else if(descriptor=="surf" )  fdetector=cv::xfeatures2d::SURF::create(400, 4, 2, EXTENDED_SURF);
+    else if(descriptor=="sift" )  fdetector=cv::xfeatures2d::SIFT::create();
 #endif
 
     else throw std::runtime_error("Invalid descriptor");
