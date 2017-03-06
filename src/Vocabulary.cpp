@@ -975,22 +975,24 @@ void Vocabulary::transform(const cv::Mat &feature,
 //      return sqd;
 //  }
 
+   //! 为浮点型描述子增加 (SIFT)
+  if(feature.type()==CV_32F){
+    do
+    {
+     auto const  &nodes = m_nodes[final_id].children;
+     double best_d = std::numeric_limits<double>::max();
 
-//  do
-//  {
-//    auto const  &nodes = m_nodes[final_id].children;
-//    double best_d = std::numeric_limits<double>::max();
-
-//    for(const auto  &id:nodes)
-//    {
-//      double d = DescManip::distance(feature, m_nodes[id].descriptor);
-//      if(d < best_d)
-//      {
-//        best_d = d;
-//        final_id = id;
-//      }
-//    }
-//  } while( !m_nodes[final_id].isLeaf() );
+     for(const auto  &id:nodes)
+     {
+       double d = DescManip::distance(feature, m_nodes[id].descriptor);
+       if(d < best_d)
+       {
+         best_d = d;
+         final_id = id;
+       }
+     }
+    } while( !m_nodes[final_id].isLeaf() );
+  }
 
   // turn node id into word id
   word_id = m_nodes[final_id].word_id;
