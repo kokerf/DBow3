@@ -780,7 +780,7 @@ void Vocabulary::transform(
 
 // --------------------------------------------------------------------------
 
-
+//! 在Database.cpp里面调用。只有当使用正向文件的时候会使用。
 void Vocabulary::transform(
   const std::vector<cv::Mat>& features,
   BowVector &v, FeatureVector &fv, int levelsup) const

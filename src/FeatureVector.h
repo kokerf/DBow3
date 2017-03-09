@@ -17,6 +17,9 @@
 namespace DBoW3 {
 
 /// Vector of nodes with indexes of local features
+//! 只有在使用正向文件的时候会使用。
+//! .first  - NodeId该图像具有单词的编号
+//! .second - 该图像所有属于此单词的feature的编号
 class  DBOW_API FeatureVector:
   public std::map<NodeId, std::vector<unsigned int> >
 {
