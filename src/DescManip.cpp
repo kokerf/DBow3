@@ -180,8 +180,9 @@ void DescManip::fromString(cv::Mat &a, const std::string &s)
     }
     else{
         int type,cols;
+        string format;
         stringstream ss(s);
-        ss >>type>>cols;
+        ss >>format>>type>>cols;
         a.create(1,  cols, type);
         if(type==CV_8UC1){
             unsigned char *p = a.ptr<unsigned char>();
