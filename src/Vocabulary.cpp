@@ -600,6 +600,13 @@ WordValue Vocabulary::getWordWeight(WordId wid) const
 
 // --------------------------------------------------------------------------
 
+cv::Mat Vocabulary::getNode(NodeId nid) const
+{
+    return m_nodes[nid].descriptor;
+}
+
+// --------------------------------------------------------------------------
+
 
 WordId Vocabulary::transform
   (const cv::Mat& feature) const

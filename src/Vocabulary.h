@@ -205,14 +205,21 @@ public:
    * @return descriptor
    */
   virtual inline cv::Mat getWord(WordId wid) const;
-  
+
   /**
    * Returns the weight of a word
    * @param wid word id
    * @return weight
    */
   virtual inline WordValue getWordWeight(WordId wid) const;
-  
+
+  /**
+  * Returns the descriptor of a node
+  * @param nid node id
+  * @return descriptor
+  */
+  virtual inline cv::Mat getNode(NodeId nid) const;
+
   /** 
    * Returns the weighting method
    * @return weighting method

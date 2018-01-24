@@ -40,6 +40,7 @@ endif()
 
 #
 OPTION(BUILD_UTILS	"Set to OFF to not build utils" ON)
+OPTION(BUILD_TESTS	"Set to OFF to not build tests" ON)
 OPTION(USE_CONTRIB 	"Set to ON if contrib are installed" OFF)
 OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
 
