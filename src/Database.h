@@ -215,7 +215,7 @@ public:
    * Stores the database in a file
    * @param filename
    */
-  void save(const std::string &filename) const;
+  void save(const std::string &filename, bool binary_compressed = true) const;
   
   /**
    * Loads the database from a file
@@ -238,6 +238,10 @@ public:
    */
   virtual void load(const cv::FileStorage &fs, 
     const std::string &name = "database");
+
+  //io to-from a stream
+  void toStream(std::ostream &str, bool compressed = true) const throw(std::exception);
+  void fromStream(std::istream &str)   throw(std::exception);
 
   // --------------------------------------------------------------------------
 

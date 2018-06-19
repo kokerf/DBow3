@@ -797,12 +797,18 @@ const FeatureVector& Database::retrieveFeatures
 // --------------------------------------------------------------------------
 
 
-void Database::save(const std::string &filename) const
+void Database::save(const std::string &filename, bool binary_compressed) const
 {
-  cv::FileStorage fs(filename.c_str(), cv::FileStorage::WRITE);
-  if(!fs.isOpened()) throw std::string("Could not open file ") + filename;
-
-  save(fs);
+  if (filename.find(".yml")==std::string::npos){
+      std::ofstream file_out(filename,std::ios::binary);
+      if (!file_out) throw std::runtime_error("Database::save Could not open file :"+filename+" for writing");
+      toStream(file_out,binary_compressed);
+  }
+  else{
+      cv::FileStorage fs(filename.c_str(), cv::FileStorage::WRITE);
+      if(!fs.isOpened()) throw std::string("Could not open file ") + filename;
+      save(fs);
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -903,10 +909,21 @@ void Database::save(cv::FileStorage &fs,
 
 void Database::load(const std::string &filename)
 {
-  cv::FileStorage fs(filename.c_str(), cv::FileStorage::READ);
-  if(!fs.isOpened()) throw std::string("Could not open file ") + filename;
+  //check first if it is a binary file
+  std::ifstream ifile(filename,std::ios::binary);
+  if (!ifile) throw std::runtime_error("Database::load Could not open file :"+filename+" for reading");
+  uint64_t sig;//magic number describing the file
+  ifile.read((char*)&sig,sizeof(sig));
+  if (sig==88877711233) {//it is a binary file. read from it
+      ifile.seekg(0,std::ios::beg);
+      fromStream(ifile);
 
-  load(fs);
+  }
+  else{
+      cv::FileStorage fs(filename.c_str(), cv::FileStorage::READ);
+      if(!fs.isOpened()) throw std::string("Could not open file ") + filename;
+      this->load(fs);
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -987,6 +1004,114 @@ void Database::load(const cv::FileStorage &fs,
 
 }
 
+void Database::toStream(std::ostream &out_str, bool compressed) const throw(std::exception)
+{
+    m_voc->toStream(out_str, compressed);
+
+    //save everything to a stream
+    std::stringstream aux_stream;
+    aux_stream.write((char*)&m_nentries, sizeof(m_nentries));
+    aux_stream.write((char*)&m_use_di, sizeof(m_use_di));
+    aux_stream.write((char*)&m_dilevels,sizeof(m_dilevels));
+
+    // invertedIndex
+    uint32_t ifile_size = m_ifile.size();
+    aux_stream.write((char*)&ifile_size,sizeof(ifile_size));
+    for(auto iit = m_ifile.begin(); iit != m_ifile.end(); ++iit)
+    {
+      uint32_t word_size = iit->size();
+      aux_stream.write((char*)&word_size,sizeof(word_size));
+      for(auto irit = iit->begin(); irit != iit->end(); ++irit)
+      {
+        aux_stream.write((char*)&irit->entry_id,sizeof(irit->entry_id));
+        aux_stream.write((char*)&irit->word_weight,sizeof(irit->word_weight));
+      } // word of IF
+    }
+
+    // directIndex
+    uint32_t dfile_size = m_dfile.size();
+    aux_stream.write((char*)&dfile_size,sizeof(dfile_size));
+    for(auto dit = m_dfile.begin(); dit != m_dfile.end(); ++dit)
+    {
+      uint32_t word_size = dit->size();
+      aux_stream.write((char*)&word_size,sizeof(word_size));
+      for(auto drit = dit->begin(); drit != dit->end(); ++drit)
+      {
+        NodeId nid = drit->first;
+        const std::vector<unsigned int>& features = drit->second;
+        uint32_t fsize = features.size();
+
+        // save info of last_nid
+        aux_stream.write((char*)&nid,sizeof(nid));
+        aux_stream.write((char*)&fsize,sizeof(fsize));
+        
+        for(auto i = features.begin(); i != features.end(); ++i)
+        {
+          const unsigned int &fid = *i;
+          aux_stream.write((char*)&fid,sizeof(fid));
+        }
+      } // entry of DF
+    }
+
+    out_str << aux_stream.rdbuf();
+}
+
+void Database::fromStream(std::istream &str) throw(std::exception)
+{
+  m_voc = new DBoW3::Vocabulary();
+  m_voc->fromStream(str);
+  m_ifile.clear();
+  m_dfile.clear();
+  str.read((char*)&m_nentries, sizeof(m_nentries));
+  str.read((char*)&m_use_di, sizeof(m_use_di));
+  str.read((char*)&m_dilevels,sizeof(m_dilevels));
+
+  uint32_t ifile_size;
+  str.read((char*)&ifile_size,sizeof(ifile_size));
+  m_ifile.resize(ifile_size);
+  for(WordId wid=0; wid<ifile_size; wid++)
+  {
+    uint32_t word_size;
+    str.read((char*)&word_size,sizeof(word_size));
+    for(uint32_t i=0; i<word_size; i++)
+    {
+      EntryId eid;
+      WordValue v;
+
+      str.read((char*)&eid,sizeof(eid));
+      str.read((char*)&v,sizeof(v));
+      m_ifile[wid].push_back(IFPair(eid, v));
+    }
+
+  }
+
+  if(!m_use_di)
+    return;
+
+  uint32_t dfile_size;
+  str.read((char*)&dfile_size,sizeof(dfile_size));
+  assert(m_nentries == dfile_size);
+  m_dfile.resize(dfile_size);
+  FeatureVector::iterator dit;
+  for(EntryId eid = 0; eid < dfile_size; ++eid)
+  {
+    NodeId nid;
+    uint32_t word_size;
+    str.read((char*)&nid,sizeof(nid));
+    str.read((char*)&word_size,sizeof(word_size));
+
+    dit = m_dfile[eid].insert(m_dfile[eid].end(),
+          make_pair(nid, std::vector<unsigned int>() ));
+
+    dit->second.reserve(word_size);
+    for(uint32_t i=0; i<word_size; i++)
+    {
+      unsigned int fid;
+      str.read((char*)&fid,sizeof(fid));
+      dit->second.push_back(fid);
+    }
+  }
+}
 
 std::ostream& operator<<(std::ostream &os,
   const Database &db)
