@@ -1004,12 +1004,15 @@ void Database::load(const cv::FileStorage &fs,
 
 }
 
-void Database::toStream(std::ostream &out_str, bool compressed) const throw(std::exception)
+void Database::toStream(std::ostream &out_str, bool with_voc, bool compressed) const throw(std::exception)
 {
-    m_voc->toStream(out_str, compressed);
-
     //save everything to a stream
     std::stringstream aux_stream;
+    aux_stream.write((char*)&with_voc, sizeof(with_voc));
+
+    if(with_voc)
+      m_voc->toStream(out_str, compressed);
+
     aux_stream.write((char*)&m_nentries, sizeof(m_nentries));
     aux_stream.write((char*)&m_use_di, sizeof(m_use_di));
     aux_stream.write((char*)&m_dilevels,sizeof(m_dilevels));
@@ -1058,8 +1061,15 @@ void Database::toStream(std::ostream &out_str, bool compressed) const throw(std:
 
 void Database::fromStream(std::istream &str) throw(std::exception)
 {
-  m_voc = new DBoW3::Vocabulary();
-  m_voc->fromStream(str);
+  bool with_voc;
+  str.read((char*)&with_voc, sizeof(with_voc));
+
+  if(with_voc)
+  {
+    m_voc = new DBoW3::Vocabulary();
+    m_voc->fromStream(str);
+  }
+  
   m_ifile.clear();
   m_dfile.clear();
   str.read((char*)&m_nentries, sizeof(m_nentries));

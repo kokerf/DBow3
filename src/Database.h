@@ -240,7 +240,7 @@ public:
     const std::string &name = "database");
 
   //io to-from a stream
-  void toStream(std::ostream &str, bool compressed = true) const throw(std::exception);
+  void toStream(std::ostream &str, bool with_voc = true, bool compressed = true) const throw(std::exception);
   void fromStream(std::istream &str)   throw(std::exception);
 
   // --------------------------------------------------------------------------
