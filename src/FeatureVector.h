@@ -46,6 +46,10 @@ public:
    * @param v feature vector
    */
   friend std::ostream& operator<<(std::ostream &out, const FeatureVector &v);
+
+  //serialization
+  void toStream(std::ostream &str)const;
+  void fromStream(std::istream &str);
     
 };
 

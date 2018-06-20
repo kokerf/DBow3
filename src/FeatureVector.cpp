@@ -80,6 +80,55 @@ std::ostream& operator<<(std::ostream &out,
   return out;  
 }
 
+//serialization
+void FeatureVector::toStream(std::ostream &str) const
+{
+  uint32_t size = this->size();
+  str.write((char*)&size,sizeof(size));
+  for(auto drit = this->begin(); drit != this->end(); ++drit)
+  {
+    NodeId nid = drit->first;
+    const std::vector<unsigned int>& features = drit->second;
+    uint32_t fsize = features.size();
+
+    // save info of last_nid
+    str.write((char*)&nid,sizeof(nid));
+    str.write((char*)&fsize,sizeof(fsize));
+    
+    for(auto i = features.begin(); i != features.end(); ++i)
+    {
+      const unsigned int &fid = *i;
+      str.write((char*)&fid,sizeof(fid));
+    }
+  }
+}
+void FeatureVector::fromStream(std::istream &str)
+{
+  this->clear();
+  uint32_t size;
+  str.read((char*)&size,sizeof(size));
+
+  FeatureVector::iterator dit;
+  for(size_t i = 0; i < size; i++)
+  {
+    NodeId nid;
+    uint32_t fsize;
+    str.read((char*)&nid,sizeof(nid));
+    str.read((char*)&fsize,sizeof(fsize));
+
+    dit = this->insert(this->end(),
+          make_pair(nid, std::vector<unsigned int>() ));
+
+    dit->second.reserve(fsize);
+    for(uint32_t j=0; j<fsize; j++)
+    {
+      unsigned int fid;
+      str.read((char*)&fid,sizeof(fid));
+      dit->second.push_back(fid);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 } // namespace DBoW3

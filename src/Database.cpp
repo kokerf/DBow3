@@ -1006,13 +1006,15 @@ void Database::load(const cv::FileStorage &fs,
 
 void Database::toStream(std::ostream &out_str, bool with_voc, bool compressed) const throw(std::exception)
 {
-    //save everything to a stream
-    std::stringstream aux_stream;
-    aux_stream.write((char*)&with_voc, sizeof(with_voc));
+    uint64_t sig=88877711233;//magic number describing the file
+    out_str.write((char*)&sig,sizeof(sig));
+    out_str.write((char*)&with_voc, sizeof(with_voc));
 
     if(with_voc)
       m_voc->toStream(out_str, compressed);
 
+    //save everything to a stream
+    std::stringstream aux_stream;
     aux_stream.write((char*)&m_nentries, sizeof(m_nentries));
     aux_stream.write((char*)&m_use_di, sizeof(m_use_di));
     aux_stream.write((char*)&m_dilevels,sizeof(m_dilevels));
@@ -1036,24 +1038,7 @@ void Database::toStream(std::ostream &out_str, bool with_voc, bool compressed) c
     aux_stream.write((char*)&dfile_size,sizeof(dfile_size));
     for(auto dit = m_dfile.begin(); dit != m_dfile.end(); ++dit)
     {
-      uint32_t word_size = dit->size();
-      aux_stream.write((char*)&word_size,sizeof(word_size));
-      for(auto drit = dit->begin(); drit != dit->end(); ++drit)
-      {
-        NodeId nid = drit->first;
-        const std::vector<unsigned int>& features = drit->second;
-        uint32_t fsize = features.size();
-
-        // save info of last_nid
-        aux_stream.write((char*)&nid,sizeof(nid));
-        aux_stream.write((char*)&fsize,sizeof(fsize));
-        
-        for(auto i = features.begin(); i != features.end(); ++i)
-        {
-          const unsigned int &fid = *i;
-          aux_stream.write((char*)&fid,sizeof(fid));
-        }
-      } // entry of DF
+      dit->toStream(aux_stream);
     }
 
     out_str << aux_stream.rdbuf();
@@ -1061,6 +1046,9 @@ void Database::toStream(std::ostream &out_str, bool with_voc, bool compressed) c
 
 void Database::fromStream(std::istream &str) throw(std::exception)
 {
+  uint64_t sig=0;//magic number describing the file
+  str.read((char*)&sig,sizeof(sig));
+  if (sig!=88877711233) throw std::runtime_error("Database::fromStream  is not of appropriate type");
   bool with_voc;
   str.read((char*)&with_voc, sizeof(with_voc));
 
@@ -1102,24 +1090,9 @@ void Database::fromStream(std::istream &str) throw(std::exception)
   str.read((char*)&dfile_size,sizeof(dfile_size));
   assert(m_nentries == dfile_size);
   m_dfile.resize(dfile_size);
-  FeatureVector::iterator dit;
   for(EntryId eid = 0; eid < dfile_size; ++eid)
   {
-    NodeId nid;
-    uint32_t word_size;
-    str.read((char*)&nid,sizeof(nid));
-    str.read((char*)&word_size,sizeof(word_size));
-
-    dit = m_dfile[eid].insert(m_dfile[eid].end(),
-          make_pair(nid, std::vector<unsigned int>() ));
-
-    dit->second.reserve(word_size);
-    for(uint32_t i=0; i<word_size; i++)
-    {
-      unsigned int fid;
-      str.read((char*)&fid,sizeof(fid));
-      dit->second.push_back(fid);
-    }
+    m_dfile[eid].fromStream(str);
   }
 }
 
